@@ -16,6 +16,7 @@ class ScamShieldCallScreeningService : CallScreeningService() {
         )
         Executors.newSingleThreadExecutor().execute {
             val result = ApiClient.checkCaller(settings, number)
+            Alerts.showIfRisky(this, result, "Incoming call needs caution")
             if (result != null) {
                 respondToCall(callDetails, CallResponse.Builder().setDisallowCall(false).build())
             }

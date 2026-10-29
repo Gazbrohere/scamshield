@@ -1,9 +1,10 @@
 package com.scamshield.companion
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -14,6 +15,12 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (android.os.Build.VERSION.SDK_INT >= 33
+            && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
+        }
         val endpoint = EditText(this).apply {
             hint = "HTTPS API endpoint, e.g. https://host/api/device/check"
             setText(preferences.getString("endpoint", ""))
@@ -51,7 +58,7 @@ class MainActivity : Activity() {
         val calls = Button(this).apply {
             text = "Choose ScamShield for caller screening"
             setOnClickListener {
-                startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APP_SETTINGS))
+                startActivity(Intent("android.settings.MANAGE_DEFAULT_APPS_SETTINGS"))
             }
         }
         setContentView(LinearLayout(this).apply {

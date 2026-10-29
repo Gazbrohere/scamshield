@@ -21,7 +21,8 @@ class ScamShieldNotificationService : NotificationListenerService() {
             prefs.getString("language", "en") ?: "en",
         )
         Executors.newSingleThreadExecutor().execute {
-            ApiClient.checkMessage(settings, content.toString().take(20_000))
+            val result = ApiClient.checkMessage(settings, content.toString().take(20_000))
+            Alerts.showIfRisky(this, result, "Message needs caution")
         }
     }
 }

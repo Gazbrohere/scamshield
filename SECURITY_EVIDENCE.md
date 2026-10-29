@@ -1,7 +1,7 @@
 # Security verification evidence
 
 Verification date: 2026-10-30  
-Repository commit under test: `dea7555` plus the CI audit-command correction in this change
+Repository commit under test: `b27eb79` plus the container hardening changes recorded in this change
 
 ## Completed locally
 
@@ -16,6 +16,10 @@ Repository commit under test: `dea7555` plus the CI audit-command correction in 
 | pip-audit | PASS | Pinned `requirements.txt`; no known vulnerabilities |
 | Gitleaks | PASS | 3 commits, no leaks found |
 | Trivy filesystem scan | PASS | `requirements.txt` vulnerabilities: 0; Dockerfile misconfigurations: 0 |
+| Docker build | PASS | Local `scamshield:local` image built with Docker Desktop Linux engine |
+| Trivy image scan | PASS | HIGH/CRITICAL vulnerabilities: 0; Debian OS vulnerabilities: 0 |
+| Compose deployment | PASS | Configuration validated; service healthcheck reached `healthy` |
+| Container hardening | PASS | Non-root `app`, read-only root filesystem, all Linux capabilities dropped, localhost-only port |
 | Runtime smoke test | PASS | `/health` 200, `/` 200, CSP, `DENY`, and `nosniff` headers |
 
 ## CI-enforced checks
@@ -23,9 +27,9 @@ Repository commit under test: `dea7555` plus the CI audit-command correction in 
 GitHub Actions also runs the above quality/security checks, generates a CycloneDX SBOM, uploads it as an
 artifact, and builds/scans the Docker image with Trivy for high/critical vulnerabilities.
 
-## Environment limitation
+## Remediation recorded
 
-Docker Desktop is installed, but its Linux engine could not start because WSL is not installed and
-installing the WSL package requires administrator privileges on this Windows account. Therefore, a local
-Docker image build was not claimed as executed. The Dockerfile was scanned directly by Trivy and the
-image build/scan remains enforced in CI.
+The initial container scan identified that the local Python virtual environment was being copied into
+the image build context. A `.dockerignore` now excludes development environments, caches, secrets, and
+other non-runtime files. The Dockerfile also removes unused `pip`, `setuptools`, and `wheel` tooling from
+the final runtime layer. The rebuilt image passed the HIGH/CRITICAL Trivy gate with zero findings.

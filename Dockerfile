@@ -5,7 +5,8 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN addgroup --system app && adduser --system --ingroup app app \
-    && pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
+    && pip install --no-cache-dir --disable-pip-version-check -r requirements.txt \
+    && pip uninstall --yes setuptools wheel pip
 COPY . .
 RUN chown -R app:app /app
 

@@ -60,7 +60,7 @@ docker compose up --build
 - `POST /api/analyze/voice`: multipart WAV `audio`; sends the documented `request` JSON plus audio to `POST /v1/asr/transcribe`, then analyzes the transcript.
 - `GET /`: browser interface.
 
-The report language selector supports English, Bengali, Hindi, Spanish, French, Portuguese, Arabic, Simplified Chinese, Japanese, Korean, Urdu, Nepali, Indonesian, Swahili, and German. The selected language is passed to the model for the report. If the model is unavailable, the deterministic local fallback remains in English and explicitly says so. Voice input follows Meta's verified Speech to Text format: mono 16-bit PCM WAV at 16 kHz or 24 kHz. Unsupported formats are rejected instead of guessed or silently converted.
+The report language selector includes English, Bengali, Hindi, Spanish, French, Portuguese, Arabic, Simplified Chinese, Japanese, Korean, Urdu, Nepali, Indonesian, Swahili, and German, plus an `Other language…` field. The selected name is passed to the model, so users can request any language the configured Meta model supports; the server validates the field and does not claim unsupported languages. If the model is unavailable, the deterministic local fallback remains in English and explicitly says so. Voice input follows Meta's verified Speech to Text format: mono 16-bit PCM WAV at 16 kHz or 24 kHz. Unsupported formats are rejected instead of guessed or silently converted.
 
 ## Evaluation
 

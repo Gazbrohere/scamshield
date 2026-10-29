@@ -6,6 +6,7 @@ import base64
 import json
 import re
 import time
+import unicodedata
 from collections import defaultdict, deque
 from typing import Any, cast
 
@@ -133,8 +134,24 @@ FALLBACK = Verdict(
 
 
 def _language_instruction(language: str) -> str:
-    name = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES["en"])
+    name = SUPPORTED_LANGUAGES.get(language, language)
     return f"Write the summary, evidence, red flags, and next steps in {name}."
+
+
+def _validate_language(language: str) -> str:
+    """Accept documented choices and safely named model-supported languages."""
+    candidate = language.strip()
+    if candidate in SUPPORTED_LANGUAGES:
+        return SUPPORTED_LANGUAGES[candidate]
+    if not 2 <= len(candidate) <= 40 or "\n" in candidate or "\r" in candidate:
+        raise HTTPException(status_code=400, detail="Unsupported output language.")
+    allowed_punctuation = {" ", "-", "'", ".", "(", ")"}
+    if any(
+        not (unicodedata.category(char).startswith("L") or char in allowed_punctuation)
+        for char in candidate
+    ):
+        raise HTTPException(status_code=400, detail="Unsupported output language.")
+    return candidate
 
 
 def _fallback_for_content(
@@ -358,8 +375,7 @@ async def analyze(
     language: str = Form("en"),
 ) -> dict[str, Any]:
     """Analyse text and an optional screenshot without persisting user data."""
-    if language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(status_code=400, detail="Unsupported output language.")
+    language = _validate_language(language)
     cleaned_text = _validate_text(text)
     content: list[dict[str, Any]] = [
         {"type": "text", "text": cleaned_text or "Analyse the attached screenshot."}
@@ -383,8 +399,7 @@ async def analyze_voice(
     language: str = Form("en"),  # noqa: B008
 ) -> dict[str, Any]:
     """Transcribe a supported WAV recording, then run the normal text agent."""
-    if language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(status_code=400, detail="Unsupported output language.")
+    language = _validate_language(language)
     allowed_types = {"audio/wav", "audio/x-wav", "audio/wave"}
     if audio.content_type not in allowed_types:
         raise HTTPException(status_code=415, detail="Upload a mono PCM WAV audio file.")
@@ -428,8 +443,7 @@ async def analyze_stream(
     language: str = Form("en"),
 ) -> StreamingResponse:
     """Stream tool calls, results, and the final verdict as Server-Sent Events."""
-    if language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(status_code=400, detail="Unsupported output language.")
+    language = _validate_language(language)
     cleaned_text = _validate_text(text)
     content: list[dict[str, Any]] = [
         {"type": "text", "text": cleaned_text or "Analyse the attached screenshot."}

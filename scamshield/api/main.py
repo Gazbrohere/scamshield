@@ -26,8 +26,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse, StreamingResponse
 
 from scamshield.config import get_settings
-from scamshield.schemas import Verdict
-from scamshield.tools import TOOLS, analyze_message, run_tool
+from scamshield.schemas import DeviceEvent, Verdict
+from scamshield.tools import TOOLS, analyze_message, check_phone, run_tool
 
 settings = get_settings()
 client = OpenAI(base_url=settings.meta_base_url, api_key=settings.model_api_key)
@@ -152,6 +152,65 @@ def _validate_language(language: str) -> str:
     ):
         raise HTTPException(status_code=400, detail="Unsupported output language.")
     return candidate
+
+
+def _check_device_token(token: str) -> None:
+    if not settings.device_ingest_token:
+        raise HTTPException(
+            status_code=503,
+            detail="Device ingestion is disabled until DEVICE_INGEST_TOKEN is configured.",
+        )
+    if token != settings.device_ingest_token:
+        raise HTTPException(status_code=401, detail="Invalid device token.")
+
+
+@app.post("/api/device/check")
+async def check_device_event(
+    event: DeviceEvent, request: Request
+) -> dict[str, Any]:
+    """Check one explicit device event without storing it or recording calls."""
+    _check_device_token(request.headers.get("X-Device-Token", ""))
+    language = _validate_language(event.language)
+    if event.event_type == "caller":
+        digits = re.sub(r"\D", "", event.phone_number)
+        if digits.startswith("880") or digits.startswith("01"):
+            phone_result = check_phone(event.phone_number)
+        else:
+            phone_result = {
+                "valid_bd_mobile": bool(re.fullmatch(r"\d{7,15}", digits)),
+                "flags": [],
+                "note": (
+                    "Only international number formatting was checked. "
+                    "A valid format is not proof that the caller is safe."
+                ),
+            }
+        return {
+            "event_type": "caller",
+            "result": {
+                "verdict": (
+                    "suspicious" if not phone_result["valid_bd_mobile"] else "likely_safe"
+                ),
+                "risk": 55 if not phone_result["valid_bd_mobile"] else 20,
+                "summary": (
+                    "This caller number has an invalid international format."
+                    if not phone_result["valid_bd_mobile"]
+                    else "This is only a number-format check, not proof that the caller is safe."
+                ),
+                "red_flags": phone_result["flags"],
+                "evidence": [phone_result["note"]],
+                "next_steps": [
+                    "Do not share passwords, PINs, OTPs, or payment details on an unexpected call.",
+                    (
+                        "End the call and contact the organization using its official "
+                        "published number."
+                    ),
+                ],
+            },
+            "language": language,
+        }
+    content = [{"type": "text", "text": event.content}]
+    result, trace = run_agent(content, language=language)
+    return {"event_type": "message", "result": result, "trace": trace, "language": language}
 
 
 def _fallback_for_content(

@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
     allowed_hosts: str = "127.0.0.1,localhost"
     environment: str = "development"
+    device_ingest_token: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -68,3 +68,40 @@ def test_validates_text_and_image_in_memory() -> None:
 def test_contributor_model_tier_is_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(MODEL_API_KEY="test-key", MODEL_NAME="muse-spark-contributor")
+
+
+def test_device_check_requires_explicit_ingest_token() -> None:
+    original_token = settings.device_ingest_token
+    settings.device_ingest_token = ""
+    try:
+        response = TestClient(app, base_url="http://localhost").post(
+            "/api/device/check",
+            json={
+                "event_type": "caller",
+                "phone_number": "+14155550123",
+                "language": "en",
+            },
+        )
+    finally:
+        settings.device_ingest_token = original_token
+    assert response.status_code == 503
+
+
+def test_device_caller_check_does_not_accept_audio_or_store_content() -> None:
+    original_token = settings.device_ingest_token
+    settings.device_ingest_token = "test-device-token"
+    try:
+        response = TestClient(app, base_url="http://localhost").post(
+            "/api/device/check",
+            headers={"X-Device-Token": "test-device-token"},
+            json={
+                "event_type": "caller",
+                "phone_number": "+14155550123",
+                "language": "en",
+            },
+        )
+    finally:
+        settings.device_ingest_token = original_token
+    assert response.status_code == 200
+    assert response.json()["event_type"] == "caller"
+    assert "audio" not in response.json()

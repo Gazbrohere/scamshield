@@ -58,6 +58,7 @@ docker compose up --build
 - `POST /api/analyze`: multipart `text` plus optional PNG/JPEG/WebP `image`; returns `result` and trace.
 - `POST /api/analyze/stream`: same fields; returns Server-Sent Events for `tool_call`, `tool_result`, and `verdict`.
 - `POST /api/analyze/voice`: multipart WAV `audio`; sends the documented `request` JSON plus audio to `POST /v1/asr/transcribe`, then analyzes the transcript.
+- `POST /api/device/check`: opt-in Android companion contract for one caller-number or message event; requires `X-Device-Token` and never accepts call audio.
 - `GET /`: browser interface.
 
 The report language selector includes English, Bengali, Hindi, Spanish, French, Portuguese, Arabic, Simplified Chinese, Japanese, Korean, Urdu, Nepali, Indonesian, Swahili, and German, plus an `Other language…` field. The selected name is passed to the model, so users can request any language the configured Meta model supports; the server validates the field and does not claim unsupported languages. If the model is unavailable, the deterministic local fallback remains in English and explicitly says so. Voice input follows Meta's verified Speech to Text format: mono 16-bit PCM WAV at 16 kHz or 24 kHz. Unsupported formats are rejected instead of guessed or silently converted.
@@ -90,6 +91,7 @@ This is not a real-world benchmark and should not be interpreted as one.
 - The model may be unavailable, rate-limited, or uncertain; the API returns a cautious fallback verdict rather than pretending certainty.
 - Do not share PINs, passwords, OTPs, or full account details with anyone. Verify through the provider's official app or published hotline.
 - Voice currently accepts supported WAV files only. Live microphone streaming is not included.
+- Active device checks require the separate Android companion, explicit OS permissions, and `DEVICE_INGEST_TOKEN`; browsers cannot silently inspect SMS, calls, or microphones.
 
 ## What I built during the hackathon
 

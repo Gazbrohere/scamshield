@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["bandit", "mypy", "pip-audit", "pytest", "ruff"]
+dev = ["bandit", "mypy", "pip-audit", "pytest", "pytest-cov", "ruff"]
 
 [tool.setuptools.packages.find]
 include = ["scamshield*"]
@@ -27,6 +27,7 @@ include = ["scamshield*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = "--cov=scamshield --cov-report=term-missing --cov-fail-under=60"
 
 [tool.ruff]
 line-length = 100

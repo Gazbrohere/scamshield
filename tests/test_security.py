@@ -1,10 +1,17 @@
-from fastapi.testclient import TestClient
+import asyncio
 
-from scamshield.api.main import app, settings
+import pytest
+from fastapi import UploadFile
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
+from starlette.datastructures import Headers
+
+from scamshield.api.main import _image_content, _validate_text, app, settings
+from scamshield.config import Settings
 
 
 def test_analyze_rejects_unsupported_image_type() -> None:
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://localhost")
     response = client.post(
         "/api/analyze",
         files={"image": ("message.gif", b"gif", "image/gif")},
@@ -16,7 +23,48 @@ def test_analyze_rejects_oversized_text() -> None:
     original_limit = settings.max_text_chars
     settings.max_text_chars = 3
     try:
-        response = TestClient(app).post("/api/analyze", data={"text": "four"})
+        response = TestClient(app, base_url="http://localhost").post(
+            "/api/analyze", data={"text": "four"}
+        )
     finally:
         settings.max_text_chars = original_limit
     assert response.status_code == 413
+
+
+def test_security_headers_are_present() -> None:
+    response = TestClient(app, base_url="http://localhost").get("/")
+    assert response.status_code == 200
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+
+
+def test_health_is_minimal_and_cacheable() -> None:
+    response = TestClient(app, base_url="http://localhost").get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_unknown_host_is_rejected() -> None:
+    response = TestClient(app, base_url="http://evil.example").get("/health")
+    assert response.status_code == 400
+
+
+def test_validates_text_and_image_in_memory() -> None:
+    assert _validate_text("  hello  ") == "hello"
+    content_type, payload = asyncio.run(
+        _image_content(
+            UploadFile(
+                filename="sample.png",
+                file=__import__("io").BytesIO(b"png"),
+                headers=Headers({"content-type": "image/png"}),
+            )
+        )
+    )
+    assert content_type == "image/png"
+    assert payload == b"png"
+
+
+def test_contributor_model_tier_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        Settings(MODEL_API_KEY="test-key", MODEL_NAME="muse-spark-contributor")

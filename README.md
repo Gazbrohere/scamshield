@@ -107,3 +107,11 @@ python eval/run_eval.py
 ```
 
 See [DEMO.md](DEMO.md) for the exact three-minute walkthrough.
+
+Security and assurance artifacts:
+
+- [THREAT_MODEL.md](THREAT_MODEL.md)
+- [SECURITY_RISK_ASSESSMENT.md](SECURITY_RISK_ASSESSMENT.md)
+- [QUALITY_PLAN.md](QUALITY_PLAN.md)
+- [OPERATIONS.md](OPERATIONS.md)
+- [SECURITY.md](SECURITY.md)

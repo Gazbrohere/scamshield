@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -17,7 +19,28 @@ jobs:
       - run: python -m mypy scamshield app.py tools.py eval/run_eval.py
       - run: python -m pytest -q
       - run: python -m bandit -r scamshield app.py tools.py -q
-      - run: python -m pip_audit
+      - run: python -m pip_audit -f cyclonedx-json -o sbom.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scamshield-sbom
+          path: sbom.json
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: git diff --check
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: scamshield:ci
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: scamshield:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true

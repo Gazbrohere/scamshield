@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     max_request_bytes: int = Field(default=12 * 1024 * 1024, ge=1, le=40 * 1024 * 1024)
     rate_limit_per_minute: int = Field(default=30, ge=1, le=300)
     cors_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
+    allowed_hosts: str = "127.0.0.1,localhost"
+    environment: str = "development"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -29,6 +31,20 @@ class Settings(BaseSettings):
         extra="ignore",
         populate_by_name=True,
     )
+
+    @field_validator("model_name")
+    @classmethod
+    def reject_contributor_tier(cls, value: str) -> str:
+        if value.lower().endswith("-contributor"):
+            raise ValueError("Contributor model tiers are not permitted.")
+        return value
+
+    @field_validator("meta_base_url")
+    @classmethod
+    def require_secure_model_endpoint(cls, value: str) -> str:
+        if not value.startswith(("https://", "http://localhost", "http://127.0.0.1")):
+            raise ValueError("META_BASE_URL must use HTTPS except for local development.")
+        return value.rstrip("/")
 
 
 @lru_cache

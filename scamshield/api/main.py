@@ -21,6 +21,7 @@ from openai import (
     RateLimitError,
 )
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse, StreamingResponse
 
 from scamshield.config import get_settings
@@ -32,6 +33,10 @@ client = OpenAI(base_url=settings.meta_base_url, api_key=settings.model_api_key)
 MODEL = settings.model_name
 app = FastAPI()
 _requests_by_ip: defaultdict[str, deque[float]] = defaultdict(deque)
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=[host for host in settings.allowed_hosts.split(",") if host],
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin for origin in settings.cors_origins.split(",") if origin],
@@ -52,20 +57,39 @@ async def security_middleware(request: Request, call_next: Any) -> Any:
         return JSONResponse(status_code=413, content={"detail": "Request is too large."})
     client_ip = request.client.host if request.client else "unknown"
     now = time.monotonic()
-    recent = _requests_by_ip[client_ip]
-    while recent and now - recent[0] >= 60:
-        recent.popleft()
-    if len(recent) >= settings.rate_limit_per_minute:
-        return JSONResponse(
-            status_code=429,
-            content={"detail": "Rate limit exceeded."},
-            headers={"Retry-After": "60"},
-        )
-    recent.append(now)
+    if request.url.path.startswith("/api/"):
+        recent = _requests_by_ip[client_ip]
+        while recent and now - recent[0] >= 60:
+            recent.popleft()
+        if len(recent) >= settings.rate_limit_per_minute:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded."},
+                headers={"Retry-After": "60"},
+            )
+        recent.append(now)
+        if len(_requests_by_ip) > 10_000:
+            expired = [
+                address
+                for address, timestamps in _requests_by_ip.items()
+                if not timestamps or now - timestamps[-1] >= 60
+            ]
+            for address in expired:
+                _requests_by_ip.pop(address, None)
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), geolocation=(), microphone=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; connect-src 'self'; img-src 'self' data:; "
+        "font-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none';"
+    )
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 SYSTEM = """You are ScamShield, a scam-triage agent for everyday users in Bangladesh (mobile banking
@@ -376,3 +400,9 @@ async def analyze_stream(
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse("static/index.html")
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    """Return liveness without exposing configuration or secret state."""
+    return {"status": "ok"}

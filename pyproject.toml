@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "pytest", "ruff"]
+dev = ["bandit", "mypy", "pip-audit", "pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 include = ["scamshield*"]

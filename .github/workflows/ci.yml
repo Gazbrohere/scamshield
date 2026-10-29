@@ -16,3 +16,8 @@ jobs:
       - run: python -m ruff check .
       - run: python -m mypy scamshield app.py tools.py eval/run_eval.py
       - run: python -m pytest -q
+      - run: python -m bandit -r scamshield app.py tools.py -q
+      - run: python -m pip_audit
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,2 @@
+"""ScamShield application package."""
+

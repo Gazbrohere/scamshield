@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScamShield | Bangladesh scam triage</title>
+  <style>
+    :root{--bg:#101820;--panel:#17232e;--line:#2a3a48;--ink:#e8eef2;--mute:#9bb0bf;--scam:#e5484d;--warn:#f2b544;--ok:#4cc38a}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}
+    main{max-width:760px;margin:auto;padding:28px 18px 72px}h1{margin:0;font-size:2.2rem}
+    .top{display:flex;justify-content:space-between;gap:12px;align-items:start}.lead{color:var(--mute);margin:2px 0 24px}
+    textarea{width:100%;min-height:145px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:14px;font:inherit;resize:vertical}
+    button,.drop{font:inherit;font-weight:650;border-radius:8px;padding:10px 15px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+    button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}button:focus-visible,textarea:focus-visible,.drop:focus-visible{outline:2px solid var(--warn);outline-offset:2px}
+    button:disabled{opacity:.5;cursor:wait}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}.mute{color:var(--mute);font-size:.9rem}
+    .drop{display:block;flex:1;min-width:220px;text-align:center;border-style:dashed;color:var(--mute)}.drop.drag{border-color:var(--warn);color:var(--ink)}
+    .drop input{display:none}.samples{margin-top:14px}.status{min-height:28px;margin-top:18px;color:var(--mute)}
+    .event{padding:7px 10px;border-left:3px solid var(--line);color:var(--mute);font-size:.9rem}.event strong{color:var(--ink)}
+    .verdict{margin-top:22px;border-left:6px solid var(--c);background:var(--panel);padding:18px 20px;border-radius:0 10px 10px 0}.verdict[data-v=scam]{--c:var(--scam)}
+    .verdict[data-v=suspicious]{--c:var(--warn)}.verdict[data-v=likely_safe]{--c:var(--ok)}.score{font-size:3.5rem;font-weight:750;color:var(--c);line-height:1}.score small{font-size:1rem;color:var(--mute);font-weight:400}
+    .bar{height:7px;background:var(--line);border-radius:4px;margin:12px 0 16px}.bar i{display:block;height:100%;background:var(--c);border-radius:4px}
+    h2{font-size:1.05rem;margin:20px 0 6px}ul{margin:0;padding-left:22px}details{margin-top:18px;color:var(--mute)}
+    pre{background:#0b1117;padding:12px;border-radius:7px;overflow:auto;font-size:.78rem;color:var(--ink)}
+    @media(max-width:520px){main{padding:22px 14px 52px}.top{display:block}.top button{margin-top:10px}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div><h1>ScamShield</h1><p class="lead" data-i18n="lead">Check a suspicious SMS, link, screenshot, or voice clip. Analysis is designed for Bangladesh and does not store your message.</p></div>
+    <button id="lang" type="button" aria-label="Switch language">বাংলা</button>
+  </header>
+  <label for="text" class="mute" data-i18n="messageLabel">Message to check</label>
+  <textarea id="text" placeholder="Paste the message here (Bangla or English)…"></textarea>
+  <div class="row">
+    <label class="drop" id="drop" tabindex="0"><span data-i18n="image">Drop a screenshot here or choose an image</span><input id="img" type="file" accept="image/*"></label>
+    <label class="drop"><span data-i18n="voice">Choose a WAV voice clip</span><input id="voice" type="file" accept="audio/wav,audio/x-wav"></label>
+    <button class="primary" id="go" type="button" data-i18n="check">Check message</button>
+  </div>
+  <div class="row samples"><span class="mute" data-i18n="sample">Try a sample:</span><button data-s="0">Fake KYC link</button><button data-s="1">Prize + PIN</button></div>
+  <div id="status" class="status" aria-live="polite"></div><div id="events" aria-live="polite"></div><div id="out"></div>
+</main>
+<script>
+const samples=[
+  "bKash: আপনার একাউন্ট ২৪ ঘণ্টার মধ্যে বন্ধ হয়ে যাবে। এখনই KYC আপডেট করুন: http://bkash-kyc-update.xyz/login",
+  "Congratulations! You won 50,000 BDT in the Nagad lucky draw. Send your PIN to 01712345678 to claim your prize."
+];
+const copy={en:{lead:"Check a suspicious SMS, link, screenshot, or voice clip. Analysis is designed for Bangladesh and does not store your message.",messageLabel:"Message to check",image:"Drop a screenshot here or choose an image",voice:"Choose a WAV voice clip",check:"Check message",sample:"Try a sample:"},bn:{lead:"সন্দেহজনক SMS, লিংক, স্ক্রিনশট বা ভয়েস ক্লিপ পরীক্ষা করুন। এই বিশ্লেষণ বাংলাদেশের জন্য তৈরি এবং আপনার বার্তা সংরক্ষণ করে না।",messageLabel:"যে বার্তাটি পরীক্ষা করবেন",image:"স্ক্রিনশট এখানে ছাড়ুন বা ছবি বাছুন",voice:"একটি WAV ভয়েস ক্লিপ বাছুন",check:"বার্তা পরীক্ষা করুন",sample:"নমুনা দেখুন:"}};
+let lang="en",busy=false;const $=s=>document.querySelector(s),el=(t,x)=>Object.assign(document.createElement(t),{textContent:x});
+document.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>$("#text").value=samples[b.dataset.s]);
+$("#lang").onclick=()=>{lang=lang==="en"?"bn":"en";document.documentElement.lang=lang;$("#lang").textContent=lang==="en"?"বাংলা":"English";document.querySelectorAll("[data-i18n]").forEach(n=>n.textContent=copy[lang][n.dataset.i18n]);};
+const drop=$("#drop"),img=$("#img");["dragenter","dragover"].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add("drag")}));["dragleave","drop"].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove("drag")}));drop.addEventListener("drop",e=>{if(e.dataTransfer.files[0]){try{img.files=e.dataTransfer.files}catch(_){}}});
+function list(title,items,box){if(!Array.isArray(items)||!items.length)return;box.append(el("h2",title));const u=el("ul");items.forEach(i=>u.append(el("li",i)));box.append(u)}
+function render(v,trace,transcript){const risk=Math.max(0,Math.min(100,Number(v.risk)||0)),box=el("section");box.className="verdict";box.dataset.v=v.verdict;const sc=el("div",`${risk} / 100 risk`);sc.className="score";const bar=el("div");bar.className="bar";bar.innerHTML="<i></i>";bar.firstChild.style.width=`${risk}%`;box.append(el("strong",{scam:"Likely a scam",suspicious:"Suspicious: don't act yet",likely_safe:"No scam signals found"}[v.verdict]||v.verdict),sc,bar,el("p",v.summary||""));if(transcript){box.append(el("h2","Transcript"),el("p",transcript))}list("Red flags",v.red_flags,box);list("What the checks found",v.evidence,box);list("What to do now",v.next_steps,box);const copyBtn=el("button","Copy report");copyBtn.onclick=()=>navigator.clipboard?.writeText(JSON.stringify(v,null,2));box.append(document.createElement("br"),copyBtn);const d=el("details");d.append(el("summary",`Agent steps (${trace.length} events)`),el("pre",JSON.stringify(trace,null,2)));$("#out").replaceChildren(box,d);}
+function showEvent(e){if(e.type==="tool_call")return `Checking ${e.tool}…`;if(e.type==="tool_result")return `${e.tool} returned a result.`;if(e.type==="status")return "Repairing the report…";return "";}
+async function check(){if(busy)return;busy=true;const btn=$("#go"),status=$("#status"),events=$("#events"),out=$("#out");btn.disabled=true;status.textContent="Investigating…";events.replaceChildren();out.replaceChildren();const fd=new FormData();fd.append("text",$("#text").value);if(img.files[0])fd.append("image",img.files[0]);const voice=$("#voice").files[0];
+try{if(voice){fd.delete("text");fd.append("audio",voice);const r=await fetch("/api/analyze/voice",{method:"POST",body:fd});if(!r.ok)throw Error(`Server error ${r.status}`);const data=await r.json();render(data.result,data.trace||[],data.transcript);return}
+const r=await fetch("/api/analyze/stream",{method:"POST",body:fd});if(!r.ok)throw Error(`Server error ${r.status}`);const reader=r.body.getReader(),decoder=new TextDecoder(),trace=[];let buf="",final=null;while(true){const {value,done}=await reader.read();if(done)break;buf+=decoder.decode(value,{stream:true});const parts=buf.split("\n\n");buf=parts.pop();for(const part of parts){if(!part.startsWith("data: "))continue;const e=JSON.parse(part.slice(6));trace.push(e);const msg=showEvent(e);if(msg)events.append(el("div",msg)).className="event";if(e.type==="verdict")final=e.result}}if(final)render(final,trace);else throw Error("No verdict returned");status.textContent="";}catch(e){status.textContent=`Could not analyse: ${e.message}`;}finally{btn.disabled=false;busy=false}}
+$("#go").onclick=check;
+</script>
+</body>
+</html>

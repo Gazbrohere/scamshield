@@ -6,6 +6,7 @@ These functions deliberately never fetch URLs or persist user content.
 from __future__ import annotations
 
 import re
+import unicodedata
 from difflib import SequenceMatcher
 from typing import Any, TypedDict
 from urllib.parse import urlparse
@@ -91,6 +92,30 @@ PATTERNS: list[tuple[str, int, str]] = [
         r"\bbkash\b|\bnagad\b|\brocket\b|\bupay\b|বিকাশ|নগদ|রকেট|উপায়",
     ),
     ("asks to click a link", 15, r"https?://|click (here|the link)|www\.|লিংকে ক্লিক"),
+    (
+        "asks for payment or a fee",
+        20,
+        r"send (the )?(money|fee|charge)|pay (now|first)|advance payment|processing fee|"
+        r"টাকা পাঠান|ফি দিন|চার্জ|আগে টাকা",
+    ),
+    (
+        "secrecy or remote-control pressure",
+        20,
+        r"keep this secret|don't tell anyone|do not tell|screen share|remote access|"
+        r"গোপন রাখুন|কাউকে বলবেন না|স্ক্রিন শেয়ার|রিমোট",
+    ),
+    (
+        "fake support or impersonation",
+        20,
+        r"customer care|support team|security team|official representative|"
+        r"কাস্টমার কেয়ার|সাপোর্ট|নিরাপত্তা টিম|কর্মকর্তা",
+    ),
+    (
+        "job registration or training fee",
+        25,
+        r"registration fee|training fee|security deposit|জয়েনিং ফি|রেজিস্ট্রেশন ফি|"
+        r"জামানত",
+    ),
 ]
 
 _LOOKALIKE_TRANSLATION = str.maketrans(
@@ -120,6 +145,7 @@ class PatternHit(TypedDict):
 
 def extract_indicators(text: str) -> dict[str, list[str]]:
     """Extract indicators without resolving or fetching any external resource."""
+    text = _normalize_text(text)
     return {
         "urls": re.findall(r"(?:https?://|www\.)[^\s<>\"']+", text),
         "phones": re.findall(r"(?:\+?88)?01[3-9]\d{8}", text),
@@ -214,6 +240,7 @@ def check_phone(number: str) -> dict[str, Any]:
 
 def match_scam_patterns(text: str) -> dict[str, Any]:
     """Match English and Bangla scam signals deterministically."""
+    text = _normalize_text(text)
     hits: list[PatternHit] = [
         {"pattern": category, "weight": weight}
         for category, weight, pattern in PATTERNS
@@ -222,6 +249,67 @@ def match_scam_patterns(text: str) -> dict[str, Any]:
     return {
         "matches": hits,
         "pattern_score": min(100, sum(item["weight"] for item in hits)),
+    }
+
+
+def _normalize_text(text: str) -> str:
+    """Make common copied-message obfuscation less effective."""
+    normalized = unicodedata.normalize("NFKC", text)
+    return re.sub(r"[\u200b-\u200f\u2060\ufeff]", "", normalized)
+
+
+def analyze_message(text: str) -> dict[str, Any]:
+    """Combine static indicators into a cautious, explainable local assessment."""
+    cleaned = _normalize_text(text)
+    indicators = extract_indicators(cleaned)
+    patterns = match_scam_patterns(cleaned)
+    evidence: list[str] = []
+    red_flags: list[str] = []
+    for match in patterns["matches"]:
+        red_flags.append(match["pattern"])
+    if indicators["urls"]:
+        for url in indicators["urls"]:
+            result = check_url(url)
+            if result.get("suspicious"):
+                red_flags.extend(result["flags"])
+                evidence.append(f"URL checked statically: {result.get('host', url)}")
+            elif result.get("official"):
+                evidence.append(f"Official domain match: {result['brand']}")
+    if indicators["phones"]:
+        for phone in indicators["phones"]:
+            result = check_phone(phone)
+            evidence.append(
+                "Bangladesh mobile number detected "
+                f"({result.get('operator') or 'operator unknown'})"
+            )
+    if indicators["amounts"]:
+        evidence.append(f"Money amount mentioned: {', '.join(indicators['amounts'][:3])}")
+    score = min(100, patterns["pattern_score"] + min(25, len(red_flags) * 5))
+    if score >= 65:
+        verdict = "scam"
+    elif score >= 30 or red_flags:
+        verdict = "suspicious"
+    else:
+        verdict = "likely_safe"
+    if not evidence:
+        evidence.append("No URL, phone number, or payment amount was detected in the text.")
+    return {
+        "verdict": verdict,
+        "risk": score,
+        "summary": (
+            "Several scam signals were detected; do not act until independently verified."
+            if verdict == "scam"
+            else "Some risk signals were detected; verify through an official channel."
+            if verdict == "suspicious"
+            else "No strong scam pattern was detected, but this is not proof of safety."
+        ),
+        "red_flags": red_flags[:8],
+        "evidence": evidence[:8],
+        "next_steps": [
+            "Do not click links or share PINs, passwords, or OTPs.",
+            "Open the provider's official app yourself instead of using message links.",
+            "If money was sent, contact the provider using its published hotline immediately.",
+        ],
     }
 
 

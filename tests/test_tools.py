@@ -1,4 +1,4 @@
-from scamshield.tools.checks import check_phone, check_url, match_scam_patterns
+from scamshield.tools.checks import analyze_message, check_phone, check_url, match_scam_patterns
 
 
 def test_url_check_is_static_and_flags_impersonation() -> None:
@@ -29,3 +29,22 @@ def test_courier_and_job_patterns_are_available() -> None:
     names = {item["pattern"] for item in result["matches"]}
     assert "courier / customs fee" in names
     assert "job / commission offer" in names
+
+
+def test_local_analysis_combines_message_indicators() -> None:
+    result = analyze_message(
+        "bKash KYC জরুরি। এখনই PIN দিন এবং টাকা পাঠান: https://bk4sh-login.xyz/a "
+        "01712345678 ৳500"
+    )
+    assert result["verdict"] == "scam"
+    assert result["risk"] >= 65
+    assert result["evidence"]
+    assert result["red_flags"]
+
+
+def test_local_analysis_explains_low_signal_message() -> None:
+    result = analyze_message("আজ বিকেলে দেখা হবে।")
+    assert result["verdict"] == "likely_safe"
+    assert result["evidence"] == [
+        "No URL, phone number, or payment amount was detected in the text."
+    ]

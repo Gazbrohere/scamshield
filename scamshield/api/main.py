@@ -26,7 +26,7 @@ from starlette.responses import JSONResponse, StreamingResponse
 
 from scamshield.config import get_settings
 from scamshield.schemas import Verdict
-from scamshield.tools import TOOLS, run_tool
+from scamshield.tools import TOOLS, analyze_message, run_tool
 
 settings = get_settings()
 client = OpenAI(base_url=settings.meta_base_url, api_key=settings.model_api_key)
@@ -113,6 +113,23 @@ FALLBACK = Verdict(
 )
 
 
+def _fallback_for_content(content: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return local evidence instead of hiding useful findings behind a generic error."""
+    text = " ".join(
+        item.get("text", "")
+        for item in content
+        if item.get("type") == "text" and isinstance(item.get("text"), str)
+    ).strip()
+    if text and text != "Analyse the attached screenshot.":
+        result = analyze_message(text)
+        result["red_flags"] = [
+            "Model analysis was unavailable; local checks only.",
+            *result["red_flags"],
+        ][:8]
+        return Verdict.model_validate(result).model_dump()
+    return FALLBACK.model_dump()
+
+
 def _is_retryable(error: Exception) -> bool:
     if isinstance(
         error, (APIConnectionError, APITimeoutError, InternalServerError, RateLimitError)
@@ -190,7 +207,7 @@ def run_agent(
             InternalServerError,
             RateLimitError,
         ):
-            return FALLBACK.model_dump(), trace
+            return _fallback_for_content(content), trace
         if not message.tool_calls:
             try:
                 return parse(message.content or "").copy(), trace
@@ -214,7 +231,7 @@ def run_agent(
                     InternalServerError,
                     RateLimitError,
                 ):
-                    return FALLBACK.model_dump(), trace
+                    return _fallback_for_content(content), trace
         messages.append(message.model_dump(exclude_none=True))
         for tool_call in cast(list[Any], message.tool_calls):
             try:
@@ -253,7 +270,7 @@ def run_agent_stream(
             InternalServerError,
             RateLimitError,
         ):
-            yield {"type": "verdict", "result": FALLBACK.model_dump()}
+            yield {"type": "verdict", "result": _fallback_for_content(content)}
             return
         if not message.tool_calls:
             try:
@@ -281,7 +298,7 @@ def run_agent_stream(
                     InternalServerError,
                     RateLimitError,
                 ):
-                    result = FALLBACK.model_dump()
+                    result = _fallback_for_content(content)
             yield {"type": "verdict", "result": result}
             return
         messages.append(message.model_dump(exclude_none=True))
@@ -305,7 +322,7 @@ def run_agent_stream(
                     "content": json.dumps(result, ensure_ascii=False),
                 }
             )
-    yield {"type": "verdict", "result": FALLBACK.model_dump()}
+    yield {"type": "verdict", "result": _fallback_for_content(content)}
 
 
 @app.post("/api/analyze")

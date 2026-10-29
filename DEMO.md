@@ -2,7 +2,7 @@
 
 ## 0:00–0:20 — Set up the problem
 
-Say: “ScamShield helps people in Bangladesh triage suspicious SMS messages without clicking their links or sending their PINs. It checks the message statically and explains its evidence.”
+Say: “ScamShield helps people globally triage suspicious messages without clicking links or sending PINs. It checks content statically and explains its evidence.”
 
 Open the app at `http://127.0.0.1:8000`. Keep the browser and terminal free of API keys and private messages.
 
@@ -10,13 +10,13 @@ Open the app at `http://127.0.0.1:8000`. Keep the browser and terminal free of A
 
 Click **Prize + PIN**, then click **Check message**.
 
-Say: “The user can paste English or Bangla. The live event stream shows the agent’s investigation rather than a black box.”
+Say: “The user can paste a message in a supported language and choose the report language. The live event stream shows the agent’s investigation rather than a black box.”
 
 Point out the tool events for pattern matching, phone checks, and any URL checks. Show the final red verdict, risk score, evidence, and next steps. Click **Copy report**.
 
-## 1:20–2:10 — Bangla screenshot flow
+## 1:20–2:10 — Multilingual screenshot flow
 
-Click **বাংলা**. Paste this fabricated sample:
+Choose **বাংলা** from the report-language selector. Paste this fabricated sample:
 
 ```text
 আপনার একাউন্ট ২৪ ঘণ্টার মধ্যে বন্ধ হয়ে যাবে। এখনই KYC আপডেট করুন: https://bkash-login.xyz/verify

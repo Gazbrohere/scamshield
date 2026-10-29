@@ -1,6 +1,6 @@
 # ScamShield
 
-ScamShield is a privacy-first scam-triage agent for everyday users in Bangladesh: paste an SMS, upload a screenshot, or add a WAV voice clip, and a Muse Spark agent investigates URLs, phone numbers, and Bangla/English scam signals before returning a clear verdict, risk score, evidence, and safe next steps.
+ScamShield is a privacy-first global scam-triage agent: paste an SMS, upload a screenshot, or add a WAV voice clip, and a Muse Spark agent investigates URLs, phone numbers, and multilingual scam signals before returning a clear verdict, risk score, evidence, and safe next steps.
 
 ## Architecture
 
@@ -60,7 +60,7 @@ docker compose up --build
 - `POST /api/analyze/voice`: multipart WAV `audio`; sends the documented `request` JSON plus audio to `POST /v1/asr/transcribe`, then analyzes the transcript.
 - `GET /`: browser interface.
 
-Voice input follows Meta's official Speech to Text documentation: mono 16-bit PCM WAV at 16 kHz or 24 kHz, `audioEncoding: "WAV"`, and `languageBias: ["Bengali", "English"]`. Unsupported formats are rejected instead of guessed or silently converted.
+The report language selector supports English, Bengali, Hindi, Spanish, French, Portuguese, Arabic, Simplified Chinese, Japanese, Korean, Urdu, Nepali, Indonesian, Swahili, and German. The selected language is passed to the model for the report. If the model is unavailable, the deterministic local fallback remains in English and explicitly says so. Voice input follows Meta's verified Speech to Text format: mono 16-bit PCM WAV at 16 kHz or 24 kHz. Unsupported formats are rejected instead of guessed or silently converted.
 
 ## Evaluation
 
@@ -86,6 +86,7 @@ This is not a real-world benchmark and should not be interpreted as one.
 ## Limitations and safety
 
 - Tool checks are evidence, not proof. A legitimate domain can still host a compromised page, and a valid phone number can be abused.
+- Multilingual pattern coverage is strongest for English, Bengali, Spanish, French, Portuguese, Arabic, Chinese, Japanese, Korean, Hindi, and related common scam phrases; model analysis should be preferred for languages outside the deterministic patterns.
 - The model may be unavailable, rate-limited, or uncertain; the API returns a cautious fallback verdict rather than pretending certainty.
 - Do not share PINs, passwords, OTPs, or full account details with anyone. Verify through the provider's official app or published hotline.
 - Voice currently accepts supported WAV files only. Live microphone streaming is not included.
@@ -93,8 +94,8 @@ This is not a real-world benchmark and should not be interpreted as one.
 ## What I built during the hackathon
 
 - Reworked the starter into a typed FastAPI package while keeping `uvicorn app:app` compatibility.
-- Added validated verdict schemas, bounded/retrying tool-calling, explicit fallback behavior, static Bangladesh-focused tools, and SSE investigation events.
-- Added documented Meta Voice Transcribe integration for Bangla/English WAV input.
+- Added validated verdict schemas, bounded/retrying tool-calling, explicit fallback behavior, multilingual global scam signals, and SSE investigation events.
+- Added documented Meta Voice Transcribe integration for supported WAV input and selectable multilingual report output.
 - Added bilingual, mobile-first UI, security limits, CI, Docker packaging, and a fabricated evaluation harness.
 
 ## Development

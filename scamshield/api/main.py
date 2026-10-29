@@ -92,11 +92,30 @@ async def security_middleware(request: Request, call_next: Any) -> Any:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
-SYSTEM = """You are ScamShield, a scam-triage agent for everyday users in Bangladesh (mobile banking
-fraud, phishing links, fake prizes, fake KYC, wrong-transfer tricks).
+SUPPORTED_LANGUAGES: dict[str, str] = {
+    "en": "English",
+    "bn": "Bengali",
+    "hi": "Hindi",
+    "es": "Spanish",
+    "fr": "French",
+    "pt": "Portuguese",
+    "ar": "Arabic",
+    "zh": "Simplified Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "ur": "Urdu",
+    "ne": "Nepali",
+    "id": "Indonesian",
+    "sw": "Swahili",
+    "de": "German",
+}
+
+SYSTEM = """You are ScamShield, a global scam-triage agent. Detect phishing, impersonation,
+mobile-payment fraud, fake prizes, account-recovery scams, investment scams, job scams,
+delivery scams, romance scams, and wrong-transfer tricks across regions and languages.
 Work like an investigator: read the message (or screenshot), call tools to extract and check every
-URL, phone number and phrase, then decide. Never ask the user for PINs/OTPs. Reply in the
-user's language (Bangla if the message is Bangla). When done, output ONLY JSON:
+URL, phone number and phrase, then decide. Never ask the user for passwords, PINs, or OTPs.
+When done, output ONLY JSON:
 {"verdict":"scam|suspicious|likely_safe","risk":0-100,"summary":"one sentence",
  "red_flags":["..."],"evidence":["tool findings you relied on"],"next_steps":["..."]}"""
 
@@ -113,7 +132,14 @@ FALLBACK = Verdict(
 )
 
 
-def _fallback_for_content(content: list[dict[str, Any]]) -> dict[str, Any]:
+def _language_instruction(language: str) -> str:
+    name = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES["en"])
+    return f"Write the summary, evidence, red flags, and next steps in {name}."
+
+
+def _fallback_for_content(
+    content: list[dict[str, Any]], language: str = "en"
+) -> dict[str, Any]:
     """Return local evidence instead of hiding useful findings behind a generic error."""
     text = " ".join(
         item.get("text", "")
@@ -123,7 +149,7 @@ def _fallback_for_content(content: list[dict[str, Any]]) -> dict[str, Any]:
     if text and text != "Analyse the attached screenshot.":
         result = analyze_message(text)
         result["red_flags"] = [
-            "Model analysis was unavailable; local checks only.",
+            "Model analysis was unavailable; local checks only. The report is in English.",
             *result["red_flags"],
         ][:8]
         return Verdict.model_validate(result).model_dump()
@@ -189,11 +215,11 @@ async def _image_content(image: UploadFile) -> tuple[str, bytes]:
 
 
 def run_agent(
-    content: list[dict[str, Any]], max_steps: int = 6
+    content: list[dict[str, Any]], max_steps: int = 6, language: str = "en"
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Run the starter agent with the original tool-calling contract."""
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": SYSTEM},
+        {"role": "system", "content": f"{SYSTEM}\n{_language_instruction(language)}"},
         {"role": "user", "content": content},
     ]
     trace: list[dict[str, Any]] = []
@@ -207,7 +233,7 @@ def run_agent(
             InternalServerError,
             RateLimitError,
         ):
-            return _fallback_for_content(content), trace
+            return _fallback_for_content(content, language), trace
         if not message.tool_calls:
             try:
                 return parse(message.content or "").copy(), trace
@@ -231,7 +257,7 @@ def run_agent(
                     InternalServerError,
                     RateLimitError,
                 ):
-                    return _fallback_for_content(content), trace
+                    return _fallback_for_content(content, language), trace
         messages.append(message.model_dump(exclude_none=True))
         for tool_call in cast(list[Any], message.tool_calls):
             try:
@@ -253,11 +279,11 @@ def run_agent(
 
 
 def run_agent_stream(
-    content: list[dict[str, Any]], max_steps: int = 6
+    content: list[dict[str, Any]], max_steps: int = 6, language: str = "en"
 ) -> Any:
     """Yield investigation events while running the same bounded agent loop."""
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": SYSTEM},
+        {"role": "system", "content": f"{SYSTEM}\n{_language_instruction(language)}"},
         {"role": "user", "content": content},
     ]
     for _ in range(min(max_steps, settings.max_agent_steps)):
@@ -270,7 +296,7 @@ def run_agent_stream(
             InternalServerError,
             RateLimitError,
         ):
-            yield {"type": "verdict", "result": _fallback_for_content(content)}
+            yield {"type": "verdict", "result": _fallback_for_content(content, language)}
             return
         if not message.tool_calls:
             try:
@@ -298,7 +324,7 @@ def run_agent_stream(
                     InternalServerError,
                     RateLimitError,
                 ):
-                    result = _fallback_for_content(content)
+                    result = _fallback_for_content(content, language)
             yield {"type": "verdict", "result": result}
             return
         messages.append(message.model_dump(exclude_none=True))
@@ -322,15 +348,18 @@ def run_agent_stream(
                     "content": json.dumps(result, ensure_ascii=False),
                 }
             )
-    yield {"type": "verdict", "result": _fallback_for_content(content)}
+    yield {"type": "verdict", "result": _fallback_for_content(content, language)}
 
 
 @app.post("/api/analyze")
 async def analyze(
     text: str = Form(""),
     image: UploadFile | None = File(None),  # noqa: B008
+    language: str = Form("en"),
 ) -> dict[str, Any]:
     """Analyse text and an optional screenshot without persisting user data."""
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=400, detail="Unsupported output language.")
     cleaned_text = _validate_text(text)
     content: list[dict[str, Any]] = [
         {"type": "text", "text": cleaned_text or "Analyse the attached screenshot."}
@@ -344,13 +373,18 @@ async def analyze(
                 "image_url": {"url": f"data:{content_type};base64,{encoded}"},
             }
         )
-    verdict, trace = run_agent(content)
+    verdict, trace = run_agent(content, language=language)
     return {"result": verdict, "trace": trace}
 
 
 @app.post("/api/analyze/voice")
-async def analyze_voice(audio: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
+async def analyze_voice(
+    audio: UploadFile = File(...),  # noqa: B008
+    language: str = Form("en"),  # noqa: B008
+) -> dict[str, Any]:
     """Transcribe a supported WAV recording, then run the normal text agent."""
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=400, detail="Unsupported output language.")
     allowed_types = {"audio/wav", "audio/x-wav", "audio/wave"}
     if audio.content_type not in allowed_types:
         raise HTTPException(status_code=415, detail="Upload a mono PCM WAV audio file.")
@@ -383,7 +417,7 @@ async def analyze_voice(audio: UploadFile = File(...)) -> dict[str, Any]:  # noq
         ) from error
     if not isinstance(transcript, str) or not transcript.strip():
         raise HTTPException(status_code=502, detail="Voice transcription returned no transcript.")
-    verdict, trace = run_agent([{"type": "text", "text": transcript}])
+    verdict, trace = run_agent([{"type": "text", "text": transcript}], language=language)
     return {"transcript": transcript, "result": verdict, "trace": trace}
 
 
@@ -391,8 +425,11 @@ async def analyze_voice(audio: UploadFile = File(...)) -> dict[str, Any]:  # noq
 async def analyze_stream(
     text: str = Form(""),
     image: UploadFile | None = File(None),  # noqa: B008
+    language: str = Form("en"),
 ) -> StreamingResponse:
     """Stream tool calls, results, and the final verdict as Server-Sent Events."""
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=400, detail="Unsupported output language.")
     cleaned_text = _validate_text(text)
     content: list[dict[str, Any]] = [
         {"type": "text", "text": cleaned_text or "Analyse the attached screenshot."}
@@ -408,7 +445,7 @@ async def analyze_stream(
         )
 
     def events() -> Any:
-        for event in run_agent_stream(content):
+        for event in run_agent_stream(content, language=language):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")

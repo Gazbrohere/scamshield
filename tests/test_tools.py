@@ -1,3 +1,4 @@
+from scamshield.api.main import SUPPORTED_LANGUAGES
 from scamshield.tools.checks import analyze_message, check_phone, check_url, match_scam_patterns
 
 
@@ -48,3 +49,8 @@ def test_local_analysis_explains_low_signal_message() -> None:
     assert result["evidence"] == [
         "No URL, phone number, or payment amount was detected in the text."
     ]
+
+
+def test_global_language_options_are_available() -> None:
+    assert len(SUPPORTED_LANGUAGES) >= 15
+    assert SUPPORTED_LANGUAGES["es"] == "Spanish"

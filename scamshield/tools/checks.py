@@ -111,6 +111,32 @@ PATTERNS: list[tuple[str, int, str]] = [
         r"কাস্টমার কেয়ার|সাপোর্ট|নিরাপত্তা টিম|কর্মকর্তা",
     ),
     (
+        "multilingual urgency or account threat",
+        25,
+        r"urgent|immediately|act now|última oportunidad|urgente|inmediatamente|"
+        r"dringend|sofort|عاجل|فوراً|紧急|立即|至急|今すぐ|긴급|지금|"
+        r"तुरंत|अभी|এখনই|hoy|aujourd'hui|agora",
+    ),
+    (
+        "multilingual credential request",
+        35,
+        r"contraseña|código de verificación|contraseñа|mot de passe|code de vérification|"
+        r"senha|código de segurança|كلمة المرور|رمز التحقق|密码|验证码|パスワード|"
+        r"認証コード|비밀번호|인증번호|पासवर्ड|ओटीपी|কোড দিন",
+    ),
+    (
+        "multilingual payment or prize bait",
+        30,
+        r"premio|lotería|gagné|prix|prêmio|sorteio|جائزة|يانصيب|中奖|彩票|"
+        r"当選|賞金|당첨|복권|पुरस्कार|लॉटरी|উপহার|জিতেছেন",
+    ),
+    (
+        "multilingual delivery or customs fee",
+        25,
+        r"paquete|aduana|frais de livraison|colis|taxa de entrega|alfândega|"
+        r"طرد|جمارك|快递|海关|荷物|関税|택배|세관|पार्सल|कस्टम",
+    ),
+    (
         "job registration or training fee",
         25,
         r"registration fee|training fee|security deposit|জয়েনিং ফি|রেজিস্ট্রেশন ফি|"

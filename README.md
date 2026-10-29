@@ -32,7 +32,21 @@ cp .env.example .env
 python -m uvicorn app:app --reload
 ```
 
-Open <http://127.0.0.1:8000>.
+Open <http://127.0.0.1:8000>. The browser app is an installable PWA and works on
+Windows, macOS, Linux, ChromeOS, Android, iOS/iPadOS, and tablets through a modern
+browser. Open the three-line menu to find **How to get help**, **Install app**,
+**Settings**, **Create or log in**, and the report-language selector. Chromium browsers
+show an install action in that menu when the PWA is ready;
+Safari on iPhone/iPad uses **Share → Add to Home Screen**, and Safari on macOS uses
+**File → Add to Dock**. The app also shows platform-specific guidance when a browser
+cannot provide a programmatic install prompt.
+
+The profile button provides **Create profile** and **Log in locally** for a browser-only
+convenience profile. This is intentionally not a cloud identity system: names are stored
+only in local browser storage, messages and reports are not synced, and no password or
+account credential is collected. A production account system should be added only with a
+real identity provider, server-side sessions, MFA, recovery, consent, and a documented
+retention policy.
 
 Docker:
 
@@ -92,6 +106,7 @@ This is not a real-world benchmark and should not be interpreted as one.
 - Do not share PINs, passwords, OTPs, or full account details with anyone. Verify through the provider's official app or published hotline.
 - Voice currently accepts supported WAV files only. Live microphone streaming is not included.
 - Active device checks require the separate Android companion, explicit OS permissions, and `DEVICE_INGEST_TOKEN`; browsers cannot silently inspect SMS, calls, or microphones.
+- The cross-platform PWA can analyze user-submitted text, screenshots, and supported WAV files on any supported browser. Automatic SMS/call monitoring is not portable across operating systems: Android supports the opt-in companion services, while iOS/iPadOS and desktop browsers remain user-initiated.
 
 ## What I built during the hackathon
 

@@ -1,13 +1,13 @@
 # Security verification evidence
 
 Verification date: 2026-10-30  
-Repository commit under test: `b27eb79` plus the container hardening changes recorded in this change
+Repository state under test: cross-platform PWA and Android companion changes, plus container hardening
 
 ## Completed locally
 
 | Check | Result | Scope |
 |---|---|---|
-| Pytest | PASS | 18 tests, 60.79% coverage, 60% enforced gate |
+| Pytest | PASS | 27 tests, 66.21% coverage, 60% enforced gate |
 | Ruff | PASS | Repository Python |
 | mypy | PASS | 12 source files |
 | Python compileall | PASS | Application and evaluation scripts |
@@ -21,6 +21,9 @@ Repository commit under test: `b27eb79` plus the container hardening changes rec
 | Compose deployment | PASS | Configuration validated; service healthcheck reached `healthy` |
 | Container hardening | PASS | Non-root `app`, read-only root filesystem, all Linux capabilities dropped, localhost-only port |
 | Runtime smoke test | PASS | `/health` 200, `/` 200, CSP, `DENY`, and `nosniff` headers |
+| PWA smoke test | PASS | `/manifest.webmanifest`, `/sw.js`, `/icon.svg`, `/icon-192.svg`, and `/icon-512.svg` returned 200 with expected content types |
+| Browser install metadata | PASS | Manifest, SVG icon, and service-worker registration verified in Chromium |
+| Android companion build | PASS | Debug APK built and APK v2 signature verified |
 
 ## CI-enforced checks
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "scamshield"
 version = "0.1.0"
-description = "Privacy-first scam triage for Bangladesh"
+description = "Privacy-first global scam triage"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi",

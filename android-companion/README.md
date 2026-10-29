@@ -48,3 +48,7 @@ Build from this directory with Android Studio or Gradle:
 
 The app deliberately does not block calls automatically or record call audio. It
 performs a number-format check and leaves the final call decision visible to the user.
+
+For Windows, macOS, Linux, ChromeOS, iOS/iPadOS, and other devices, use the
+installable ScamShield PWA from the browser. Those platforms do not expose a
+portable API for silently monitoring all SMS and calls.

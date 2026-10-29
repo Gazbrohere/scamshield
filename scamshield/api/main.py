@@ -529,6 +529,31 @@ def index() -> FileResponse:
     return FileResponse("static/index.html")
 
 
+@app.get("/manifest.webmanifest")
+def manifest() -> FileResponse:
+    return FileResponse("static/manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    return FileResponse("static/sw.js", media_type="application/javascript")
+
+
+@app.get("/icon.svg")
+def icon() -> FileResponse:
+    return FileResponse("static/icon.svg", media_type="image/svg+xml")
+
+
+@app.get("/icon-192.svg")
+def icon_192() -> FileResponse:
+    return FileResponse("static/icon-192.svg", media_type="image/svg+xml")
+
+
+@app.get("/icon-512.svg")
+def icon_512() -> FileResponse:
+    return FileResponse("static/icon-512.svg", media_type="image/svg+xml")
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Return liveness without exposing configuration or secret state."""

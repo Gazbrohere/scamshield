@@ -45,6 +45,32 @@ def test_health_is_minimal_and_cacheable() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_cross_platform_web_app_assets_are_available() -> None:
+    client = TestClient(app, base_url="http://localhost")
+    manifest = client.get("/manifest.webmanifest")
+    worker = client.get("/sw.js")
+    icon = client.get("/icon.svg")
+    icon_192 = client.get("/icon-192.svg")
+    icon_512 = client.get("/icon-512.svg")
+    assert manifest.status_code == 200
+    assert worker.status_code == 200
+    assert icon.status_code == 200
+    assert icon_192.status_code == 200
+    assert icon_512.status_code == 200
+    assert manifest.headers["content-type"].startswith("application/manifest+json")
+    assert "serviceWorker" not in worker.text
+    assert "<svg" in icon.text
+
+
+def test_web_ui_has_navigation_help_install_and_local_profile_surfaces() -> None:
+    html = TestClient(app, base_url="http://localhost").get("/").text
+    for marker in ("How to get help", "Install ScamShield", "Create or log in",
+                   "beforeinstallprompt", "data-view=\"settings\"",
+                   "data-install-platform=\"windows\"", "data-install-platform=\"ios\"",
+                   'id="menu"', 'id="install"'):
+        assert marker in html
+
+
 def test_unknown_host_is_rejected() -> None:
     response = TestClient(app, base_url="http://evil.example").get("/health")
     assert response.status_code == 400

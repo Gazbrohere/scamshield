@@ -115,3 +115,4 @@ Security and assurance artifacts:
 - [QUALITY_PLAN.md](QUALITY_PLAN.md)
 - [OPERATIONS.md](OPERATIONS.md)
 - [SECURITY.md](SECURITY.md)
+- [SECURITY_EVIDENCE.md](SECURITY_EVIDENCE.md)

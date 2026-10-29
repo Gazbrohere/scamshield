@@ -19,7 +19,7 @@ jobs:
       - run: python -m mypy scamshield app.py tools.py eval/run_eval.py
       - run: python -m pytest -q
       - run: python -m bandit -r scamshield app.py tools.py -q
-      - run: python -m pip_audit -f cyclonedx-json -o sbom.json
+      - run: python -m pip_audit -r requirements.txt -f cyclonedx-json -o sbom.json
       - uses: actions/upload-artifact@v4
         with:
           name: scamshield-sbom

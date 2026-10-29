@@ -1,4 +1,4 @@
-# ScamShield Android companion (opt-in starter)
+# ScamShield Android companion (opt-in)
 
 The web app cannot receive operating-system SMS or call events. This contract is the
 safe integration point for an Android companion:
@@ -36,6 +36,15 @@ The backend rejects device requests when `DEVICE_INGEST_TOKEN` is not configured
 For production, issue a per-device short-lived token through an authenticated
 enrollment flow rather than sharing one static token across devices.
 
-This folder is an integration contract, not a Play-Store-ready Android application.
-Android permissions, privacy disclosures, consent screens, and Google Play policy
-review are required before distribution.
+This folder now contains a minimal native Android implementation. It still requires
+Android SDK/Gradle setup, app signing, device testing, privacy disclosures, consent
+screens, and Google Play policy review before distribution.
+
+Build from this directory with Android Studio or Gradle:
+
+```bash
+./gradlew :app:assembleDebug
+```
+
+The app deliberately does not block calls automatically or record call audio. It
+performs a number-format check and leaves the final call decision visible to the user.
